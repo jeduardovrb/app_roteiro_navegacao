@@ -1,16 +1,18 @@
 package com.example.apprateionavegacao;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 
-import com.esri.arcgisruntime.ArcGISRuntimeEnvironment;
-import com.esri.arcgisruntime.mapping.BasemapStyle;;
 import com.esri.arcgisruntime.mapping.ArcGISMap;
 import com.esri.arcgisruntime.mapping.Basemap;
 import com.esri.arcgisruntime.mapping.view.LocationDisplay;
@@ -24,43 +26,37 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         mMapView = findViewById(R.id.mapView);
-        setupMap();
-        setupLocationDisplay();
-        setupGPS();
-    }
-
-    // Criar a função; depois incluir sua chamada no oncreate
-    private void setupLocationDisplay() {
-        mLocationDisplay = mMapView.getLocationDisplay();
-        mLocationDisplay.setAutoPanMode(LocationDisplay.AutoPanMode.COMPASS_NAVIGATION);
-        mLocationDisplay.startAsync();
+        //setupMap();
+        //setupLocationDisplay();
+        //setupGPS();
     }
 
     private void setupMap() {
         if (mMapView != null) {
-            Basemap.Type basemapType = Basemap.Type.STREETS_VECTOR;
-            double latitude = -21.2526;
-            double longitude = -43.1511;
+            Basemap.Type basemapType = Basemap.Type.OPEN_STREET_MAP;
+            double latitude   = -21.2526;
+            double longitude  = -43.1511;
             int levelOfDetail = 20;
-            ArcGISMap map = new ArcGISMap(basemapType,latitude,longitude,levelOfDetail);
+            ArcGISMap map = new ArcGISMap(basemapType, latitude, longitude, levelOfDetail);
             mMapView.setMap(map);
         }
     }
 
-    private void setupGPS(){
-      // Listen to changes in the status of the location data source.
-        mLocationDisplay.addDataSourceStatusChangedListener(dataSourceStatusChangedEvent-> {
-            if (dataSourceStatusChangedEvent.isStarted() || dataSourceStatusChangedEvent.getError()== null) {
+    private void setupGPS() {
+        mLocationDisplay.addDataSourceStatusChangedListener(dataSourceStatusChangedEvent -> {
+            if (dataSourceStatusChangedEvent.isStarted() || dataSourceStatusChangedEvent.getError() == null) {
                 return;
             }
+
             int requestPermissionsCode = 2;
-            String[] requestPermissions = new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION};
-            if (!(ContextCompat.checkSelfPermission(MainActivity.this, requestPermissions[0]) ==
-                    PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(MainActivity.this,
-                    requestPermissions[1]) == PackageManager.PERMISSION_GRANTED)) {
+
+            String[] requestPermissions = new String[] {Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION };
+
+            if (!(ContextCompat.checkSelfPermission(MainActivity.this, requestPermissions[0])
+                    == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(
+                    MainActivity.this, requestPermissions[1]) == PackageManager.PERMISSION_GRANTED)) {
                 ActivityCompat.requestPermissions(MainActivity.this, requestPermissions,
                         requestPermissionsCode);
             } else {
@@ -69,34 +65,90 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void setupLocationDisplay() {
+        mLocationDisplay = mMapView.getLocationDisplay();
+        mLocationDisplay.setAutoPanMode(LocationDisplay.AutoPanMode.COMPASS_NAVIGATION);
+        mLocationDisplay.startAsync();
+    }
+
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             mLocationDisplay.startAsync();
         } else {
-            Toast.makeText(MainActivity.this, "permissão recusada", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Permissão Recusada", Toast.LENGTH_LONG).show();
         }
     }
 
     @Override
     protected void onPause() {
-        if (mMapView != null) {
-            mMapView.pause();
-        }
+        if (mMapView != null) mMapView.pause();
         super.onPause();
     }
+
     @Override
     protected void onResume() {
         super.onResume();
-        if (mMapView != null) {
-            mMapView.resume();
-        }
+        if (mMapView != null) mMapView.resume();
     }
+
     @Override
     protected void onDestroy() {
-        if (mMapView != null) {
-            mMapView.dispose();
-        }
+        if (mMapView != null) mMapView.dispose();
         super.onDestroy();
     }
+
+
+
+    public void buscarInformacoesGPS(View view) {
+        LocationManager mLocManager = null;
+        LocationListener mLocListener;
+        mLocManager = (LocationManager) getSystemService(MainActivity.this.LOCATION_SERVICE);
+        mLocListener = new MinhaLocalizacaoListener();
+
+        if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[] {
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    }, 1);
+
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[] {
+                            Manifest.permission.ACCESS_NETWORK_STATE
+                    }, 1);
+
+            return;
+        }
+        //  GPS_PROVIDER NETWORK_PROVIDER
+        mLocManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocListener);
+        if (mLocManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            String texto =
+                    "Latitude.: " + MinhaLocalizacaoListener.latitude + "\n" +
+                            "Longitude: " + MinhaLocalizacaoListener.longitude + "\n";
+
+            Toast.makeText(this, texto, Toast.LENGTH_LONG).show();
+
+            if (mMapView != null) {
+                Basemap.Type basemapType = Basemap.Type.OPEN_STREET_MAP;
+                double latitude   = MinhaLocalizacaoListener.latitude;
+                double longitude  = MinhaLocalizacaoListener.longitude;
+                int levelOfDetail = 20;
+                ArcGISMap map = new ArcGISMap(basemapType, latitude, longitude, levelOfDetail);
+                mMapView.setMap(map);
+
+                setupLocationDisplay();
+                setupGPS();
+            }
+        } else {
+            Toast.makeText(this, "GPS desabilitado.", Toast.LENGTH_LONG).show();
+        }
+
+    }
+
+
 }
